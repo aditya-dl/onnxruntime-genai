@@ -1387,6 +1387,8 @@ bool IsGraphCaptureEnabled(const Config::SessionOptions& session_options) {
         }
       } else if (provider_options->name == "DML") {
         return true;
+      } else if (provider_options->name == "MIGraphX") {
+        return true;
       } else if (provider_options->name == "WebGPU") {
         for (const auto& value : provider_options->options) {
           if (value.first == "enableGraphCapture" && value.second == "1") {
