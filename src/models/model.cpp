@@ -154,8 +154,45 @@ void State::Run(OrtSession& session, bool graph_capture_this_run) {
     run_options_->AddConfigEntry("disable_synchronize_execution_providers", "1");
   }
 
+  std::unique_ptr<OrtValue> new_input_ids;
+
+  for (int i = 0; i < inputs_.size(); i++) {
+
+    if (!prompt_gen_) {
+      continue;
+    }
+    std::string input_name = input_names_[i];     
+
+    if (input_name == "input_ids") {
+      size_t padded_size = params_->search.max_length;
+      std::vector<int64_t> new_shape{params_->search.batch_size, (int64_t)padded_size};
+
+      OrtValue* value = inputs_[i];
+      auto info = value->GetTensorTypeAndShapeInfo();
+      ONNXTensorElementDataType elem_type = info->GetElementType();
+      size_t num_elems = info->GetElementCount();
+      std::vector<int64_t> dims = info->GetShape();
+
+      int64_t* data = value->GetTensorMutableData<int64_t>();
+
+      size_t left_pad_idx = 0;
+      new_input_ids = OrtValue::CreateTensor(model_.allocator_cpu_, new_shape, elem_type);     
+      int64_t* new_data = new_input_ids->GetTensorMutableData<int64_t>();
+      for (int64_t items = 0; items < new_shape[1]; ++items) {
+        new_data[items] = 0;
+      }        
+
+      for (size_t orig_data_idx = 0; orig_data_idx < num_elems; ++orig_data_idx) {
+        new_data[left_pad_idx] = data[orig_data_idx];
+        left_pad_idx += 1;
+      }
+      inputs_[i] = new_input_ids.get();      
+    }
+  }
   session.Run(run_options_.get(), input_names_.data(), inputs_.data(), input_names_.size(),
               output_names_.data(), outputs_.data(), output_names_.size());
+
+  new_input_ids.reset();
 
   extra_outputs_.RegisterOutputs();
 

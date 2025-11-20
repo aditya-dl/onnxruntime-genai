@@ -131,6 +131,8 @@ void DefaultPositionInputs::Update(DeviceSpan<int32_t> next_tokens, int total_le
     // Initialize on first update
     if (is_first_update_) {
       position_ids_shape_[1] = new_length;
+      if (state_.prompt_gen_)
+        position_ids_shape_[1] = state_.params_->search.max_length;
       if (type_ == Ort::TypeToTensorType<int32_t>)
         CreateAndInitializePositionIDs<int32_t>(next_tokens, position_ids_shape_);
       else
@@ -201,6 +203,8 @@ void DefaultPositionInputs::UpdatePositionIDs(int total_length, int new_kv_lengt
   // Reallocate position_ids when new_kv_length changes
   if (position_ids_shape_[1] != new_kv_length) {
     position_ids_shape_[1] = new_kv_length;
+    if (state_.prompt_gen_)
+      position_ids_shape_[1] = state_.params_->search.max_length;
     CreateNextPositionIDsTensor();
     state_.inputs_[posid_input_index_] = position_ids_->GetOrtTensor();
   }
