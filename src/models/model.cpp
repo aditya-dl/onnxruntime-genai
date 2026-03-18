@@ -156,37 +156,43 @@ void State::Run(OrtSession& session, bool graph_capture_this_run) {
 
   std::unique_ptr<OrtValue> new_input_ids;
 
-  for (int i = 0; i < inputs_.size(); i++) {
+  if (prompt_gen_) {
+    for (int i = 0; i < inputs_.size(); i++) {
+      std::string input_name = input_names_[i];
 
-    if (!prompt_gen_) {
-      continue;
-    }
-    std::string input_name = input_names_[i];     
+      if (input_name == "input_ids") {
+        int64_t batch_size = params_->search.batch_size;
+        int64_t padded_seq_len = static_cast<int64_t>(params_->search.max_length);
+        std::vector<int64_t> new_shape{batch_size, padded_seq_len};
 
-    if (input_name == "input_ids") {
-      size_t padded_size = params_->search.max_length;
-      std::vector<int64_t> new_shape{params_->search.batch_size, (int64_t)padded_size};
+        OrtValue* value = inputs_[i];
+        auto info = value->GetTensorTypeAndShapeInfo();
+        ONNXTensorElementDataType elem_type = info->GetElementType();
+        std::vector<int64_t> dims = info->GetShape();
+        int64_t orig_seq_len = std::min(dims[1], padded_seq_len);
 
-      OrtValue* value = inputs_[i];
-      auto info = value->GetTensorTypeAndShapeInfo();
-      ONNXTensorElementDataType elem_type = info->GetElementType();
-      size_t num_elems = info->GetElementCount();
-      std::vector<int64_t> dims = info->GetShape();
+        new_input_ids = OrtValue::CreateTensor(model_.allocator_cpu_, new_shape, elem_type);
 
-      int64_t* data = value->GetTensorMutableData<int64_t>();
-
-      size_t left_pad_idx = 0;
-      new_input_ids = OrtValue::CreateTensor(model_.allocator_cpu_, new_shape, elem_type);     
-      int64_t* new_data = new_input_ids->GetTensorMutableData<int64_t>();
-      for (int64_t items = 0; items < new_shape[1]; ++items) {
-        new_data[items] = 0;
-      }        
-
-      for (size_t orig_data_idx = 0; orig_data_idx < num_elems; ++orig_data_idx) {
-        new_data[left_pad_idx] = data[orig_data_idx];
-        left_pad_idx += 1;
+        if (elem_type == ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64) {
+          auto* src = value->GetTensorMutableData<int64_t>();
+          auto* dst = new_input_ids->GetTensorMutableData<int64_t>();
+          std::fill(dst, dst + batch_size * padded_seq_len, int64_t{0});
+          for (int64_t b = 0; b < batch_size; ++b) {
+            std::copy(src + b * orig_seq_len, src + b * orig_seq_len + orig_seq_len,
+                      dst + b * padded_seq_len);
+          }
+        } else {
+          auto* src = value->GetTensorMutableData<int32_t>();
+          auto* dst = new_input_ids->GetTensorMutableData<int32_t>();
+          std::fill(dst, dst + batch_size * padded_seq_len, int32_t{0});
+          for (int64_t b = 0; b < batch_size; ++b) {
+            std::copy(src + b * orig_seq_len, src + b * orig_seq_len + orig_seq_len,
+                      dst + b * padded_seq_len);
+          }
+        }
+        inputs_[i] = new_input_ids.get();
+        break;
       }
-      inputs_[i] = new_input_ids.get();      
     }
   }
   session.Run(run_options_.get(), input_names_.data(), inputs_.data(), input_names_.size(),
