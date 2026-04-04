@@ -30,6 +30,8 @@ std::string_view NormalizeProviderName(std::string_view name) {
     return "VitisAI";
   } else if (lower_name == "nvtensorrtrtx") {
     return "NvTensorRtRtx";
+  } else if (lower_name == "migraphx") {
+    return "MIGraphX";
   }
   return name;  // Return name unchanged
 }
