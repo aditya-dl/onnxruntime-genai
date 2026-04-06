@@ -1410,6 +1410,22 @@ bool IsGraphCaptureEnabled(const Config::SessionOptions& session_options) {
   return false;
 }
 
+bool NeedsStaticInputShapes(const Config::SessionOptions& session_options) {
+  for (const auto& provider : session_options.providers) {
+    const auto provider_options = std::find_if(session_options.provider_options.begin(),
+                                               session_options.provider_options.end(),
+                                               [&provider](const Config::ProviderOptions& po) {
+                                                 return po.name == provider;
+                                               });
+    if (provider_options != session_options.provider_options.end()) {
+      if (provider_options->name == "MIGraphX") {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 bool IsMultiProfileEnabled(const Config::SessionOptions& session_options) {
   for (const auto& provider : session_options.providers) {
     const auto provider_options = std::find_if(session_options.provider_options.begin(),
