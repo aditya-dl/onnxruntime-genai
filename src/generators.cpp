@@ -24,6 +24,7 @@
 #include "webgpu/interface.h"
 #include "openvino/interface.h"
 #include "ryzenai/interface.h"
+#include "migraphx/interface.h"
 #include "engine/engine.h"
 
 #if defined(_WIN32)
@@ -254,6 +255,8 @@ std::string to_string(DeviceType device_type) {
       return "NvTensorRtRtx";
     case DeviceType::RyzenAI:
       return "RyzenAI";
+    case DeviceType::MIGRAPHX:
+      return "MIGraphX";
     default:
       throw std::runtime_error("Unknown device type");
   }
@@ -279,6 +282,8 @@ DeviceInterface* GetDeviceInterface(DeviceType type) {
       return GetOpenVINOInterface();
     case DeviceType::RyzenAI:
       return GetRyzenAIInterface();
+    case DeviceType::MIGRAPHX:
+      return GetMIGraphXInterface();
   }
 }
 
