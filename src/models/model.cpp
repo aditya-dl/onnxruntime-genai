@@ -456,7 +456,7 @@ void EnsureDeviceOrtInit(DeviceInterface& device, const Config& config) {
   // This ensures memory allocated on-device for model inputs/outputs is valid for the lifetime of GenAI.
 
   // Names for the device types used by 'SetProviderSessionOptions'
-  static const char* device_type_names[] = {"CPU (Not used, see above)", "cuda", "DML", "WebGPU", "QNN", "OpenVINO (Not used, see above)", "NvTensorRtRtx", "RyzenAI"};
+  static const char* device_type_names[] = {"CPU (Not used, see above)", "cuda", "DML", "WebGPU", "QNN", "OpenVINO (Not used, see above)", "NvTensorRtRtx", "RyzenAI", "MIGraphX"};
   static_assert(std::size(device_type_names) == static_cast<size_t>(DeviceType::MAX));
 
   // Create an OrtSessionOptions and set the options to use the DeviceType we're using here
@@ -475,7 +475,10 @@ void EnsureDeviceOrtInit(DeviceInterface& device, const Config& config) {
   allocator.session_ = OrtSession::Create(GetOrtEnv(), g_trivial_model, sizeof(g_trivial_model), session_options.get());
 
   // Names for the device memory types used by 'OrtMemoryInfo::Create'
-  static const char* device_memory_type_names[] = {"CPU (Not used, see above)", "Cuda", "DML", "WebGPU_Buf", "QnnHtpShared", "OpenVINO (Not used, see above)", "Cuda", "Cpu"};
+  // Note: MIGraphX's OrtMemoryInfo memory-type name is "Cuda" — confirmed against
+  // rocm-onnxruntime/onnxruntime/core/providers/migraphx/migraphx_execution_provider.cc:241.
+  // The MIGraphX EP registers its HIP allocator under the "Cuda" name for ORT API compatibility.
+  static const char* device_memory_type_names[] = {"CPU (Not used, see above)", "Cuda", "DML", "WebGPU_Buf", "QnnHtpShared", "OpenVINO (Not used, see above)", "Cuda", "Cpu", "Cuda"};
   static_assert(std::size(device_memory_type_names) == static_cast<size_t>(DeviceType::MAX));
 
   // Get the allocator from the OrtSession for the DeviceType (it's called 'AllocatorCreate' but it's really 'AllocatorGet')
