@@ -405,7 +405,14 @@ DefaultKeyValueCache::DefaultKeyValueCache(State& state)
       }
 
       presents_.push_back(OrtValue::CreateTensor(Allocator(), tensor_shape, type_));
-      if (Device().GetType() != DeviceType::WEBGPU) {
+      // WebGPU has no Zero() implementation; MIGraphX skips it for the same
+      // reason (no OGA-side HIP support — see docs/learning-notes/oga-build-no-rocm-policy.md).
+      // Per the original comment on this line, zeroing here is *optional* — its purpose is
+      // to prevent leaking data from a previous run, which doesn't apply to a fresh per-Generator
+      // allocation. If correctness issues arise (NaN from past KV positions despite attention mask),
+      // implement Zero properly via either HIP (commit f337bce5's body) or ORT cross-device APIs.
+      if (Device().GetType() != DeviceType::WEBGPU &&
+          Device().GetType() != DeviceType::MIGRAPHX) {
         ByteWrapTensor(Device(), *presents_.back()).Zero();
       }
     }
