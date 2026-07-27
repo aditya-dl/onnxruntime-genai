@@ -222,6 +222,18 @@ struct InterfaceImpl : DeviceInterface {
 
   void Synchronize() override {}
 
+  // The umbrella EP selects its backend from provider options (notably "profile"). The trivial
+  // device-init session that EnsureDeviceOrtInit builds gets empty options by default, so forward
+  // the user's umbrella options here or the umbrella has no backend to create for that session.
+  void ShapeInitSessionProviderOptions(Config::ProviderOptions& init_options,
+                                       const Config::ProviderOptions* user_options) const override {
+    if (user_options) {
+      for (const auto& opt : user_options->options) {
+        init_options.options.emplace_back(opt);
+      }
+    }
+  }
+
  private:
   Ort::Allocator* ort_allocator_{};
   const OrtMemoryInfo* ort_memory_info_{};
